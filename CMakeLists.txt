@@ -225,14 +225,18 @@ set(PICOQUIC_TEST_LIBRARY_FILES
     picoquictest/openssl_test.c
     picoquictest/p2p_test.c
     picoquictest/pacing_test.c
+    picoquictest/packet_names_test.c
     picoquictest/parseheadertest.c
+    picoquictest/performance_log_test.c
     picoquictest/picolog_test.c
     picoquictest/picoquic_lb_test.c
+    picoquictest/picoquic_ptls_fusion_test.c
     picoquictest/pn2pn64test.c
     picoquictest/qlog_frame_test.c
     picoquictest/qlog_test.c
     picoquictest/qmux_test.c
     picoquictest/quic_tester.c
+    picoquictest/quicctx_test.c
     picoquictest/red_aqm.c
     picoquictest/rctl_aqm.c
     picoquictest/sacktest.c
@@ -293,11 +297,8 @@ OPTION(PICOQUIC_FETCH_PTLS "Fetch PicoTLS during configuration" OFF)
 OPTION(PICOQUIC_FETCH_AEGIS "Fetch libaegis during configuration when WITH_AEGIS is enabled" OFF)
 OPTION(PICOQUIC_AEGIS_FAVOR_PERFORMANCE "Build fetched libaegis with FAVOR_PERFORMANCE enabled" ON)
 OPTION(PICOQUIC_AEGIS_NATIVE_ARCH "Build fetched libaegis with -march=native for this host CPU" OFF)
-if(WITH_AEGIS)
-    set(PICOQUIC_FETCH_PTLS_DEFAULT_TAG "7c32032f91449d695b24b82955f20d04d47e6cff")
-else()
-    set(PICOQUIC_FETCH_PTLS_DEFAULT_TAG "bfa67875982afc4c24f21e146cef4747fa189c2f")
-endif()
+# Set to picotls build as of 2026-10-08, which includes AEGIS support when available.
+set(PICOQUIC_FETCH_PTLS_DEFAULT_TAG "f06553b877ada93c860dd1db9002eabf7365292d")
 set(PICOQUIC_FETCH_PTLS_TAG "${PICOQUIC_FETCH_PTLS_DEFAULT_TAG}" CACHE STRING "Git tag or commit used when PICOQUIC_FETCH_PTLS is enabled")
 set(PICOQUIC_FETCH_AEGIS_TAG "0.10.1" CACHE STRING "Git tag or commit used when PICOQUIC_FETCH_AEGIS is enabled")
 if(PICOQUIC_FETCH_PTLS OR (WITH_AEGIS AND PICOQUIC_FETCH_AEGIS))
@@ -379,7 +380,12 @@ int main(void)
     list(APPEND PICOQUIC_CRYPTO_EXTRA_LIBRARIES ${AEGIS_LIBRARIES})
 endif()
 
-OPTION(PTLS_WITH_FUSION "build 'fusion' AES-GCM engine" ${PTLS_WITH_FUSION_DEFAULT})
+# Fusion's do_encrypt_v and the streaming do_encrypt_init/update/final are still unimplemented
+# stubs (assert(!"FIXME")) in the vendored picotls Fusion backend, and picotls's own record-layer
+# code (e.g. NewSessionTicket) calls do_encrypt_v -- so enabling Fusion crashes real connections.
+# Default it OFF everywhere until that is fixed upstream; explicitly pass -DPTLS_WITH_FUSION=ON
+# to override for local experimentation.
+OPTION(PTLS_WITH_FUSION "build 'fusion' AES-GCM engine" OFF)
 if(PTLS_WITH_FUSION)
     message(STATUS "PTLS Fusion is enabled")
 else()
